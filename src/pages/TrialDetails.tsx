@@ -1,15 +1,20 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Users, Calendar } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PhaseBadge } from "@/components/PhaseBadge";
 import { StatusBadge } from "@/components/StatusBadge";
+import { OverviewTab } from "@/components/OverviewTab";
+import { EligibilityTab } from "@/components/EligibilityTab";
+import { StudyPlanTab } from "@/components/StudyPlanTab";
+import { OutcomesTab } from "@/components/OutcomesTab";
+import { ParticipantsTab } from "@/components/ParticipantsTab";
 import { useTrials } from "@/context/TrialContext";
 
 export default function TrialDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getTrialById } = useTrials();
+  const { getTrialById, updateTrial } = useTrials();
   const trial = id ? getTrialById(id) : undefined;
 
   if (!trial) {
@@ -22,48 +27,65 @@ export default function TrialDetails() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-4 lg:p-6">
-      <Button variant="ghost" onClick={() => navigate("/")} className="gap-2 text-muted-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-      </Button>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <CardTitle className="text-2xl">{trial.title}</CardTitle>
-            <div className="flex gap-2">
-              <PhaseBadge phase={trial.phase} />
-              <StatusBadge status={trial.status} />
+    <div className="mx-auto max-w-5xl space-y-6 p-4 lg:p-6">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 -mx-4 -mt-4 bg-background/95 backdrop-blur px-4 pt-4 pb-4 border-b border-border lg:-mx-6 lg:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">{trial.title}</h1>
+              <p className="text-sm text-muted-foreground">{trial.condition}</p>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <InfoRow icon={<MapPin className="h-4 w-4" />} label="Location" value={trial.location} />
-            <InfoRow icon={<Users className="h-4 w-4" />} label="Enrollment" value={`${trial.enrollment} participants`} />
-            <InfoRow icon={<Calendar className="h-4 w-4" />} label="Start Date" value={new Date(trial.startDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} />
-            <InfoRow label="Condition" value={trial.condition} />
+          <div className="flex gap-2">
+            <PhaseBadge phase={trial.phase} />
+            <StatusBadge status={trial.status} />
           </div>
-          {trial.description && (
-            <div className="rounded-lg bg-muted/50 p-4">
-              <h3 className="mb-1 text-sm font-semibold text-foreground">Description</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{trial.description}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function InfoRow({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-start gap-2">
-      {icon && <span className="mt-0.5 text-muted-foreground">{icon}</span>}
-      <div>
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <p className="text-sm font-medium text-foreground">{value}</p>
+        </div>
       </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="w-full justify-start overflow-x-auto">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="eligibility">Eligibility Criteria</TabsTrigger>
+          <TabsTrigger value="study-plan">Study Plan</TabsTrigger>
+          <TabsTrigger value="outcomes">Outcomes</TabsTrigger>
+          <TabsTrigger value="participants">Participants</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="animate-fade-in">
+          <OverviewTab trial={trial} onSave={(updates) => updateTrial(trial.id, updates)} />
+        </TabsContent>
+
+        <TabsContent value="eligibility" className="animate-fade-in">
+          <EligibilityTab
+            eligibility={trial.eligibility || { inclusion: [], exclusion: [] }}
+            onSave={(eligibility) => updateTrial(trial.id, { eligibility })}
+          />
+        </TabsContent>
+
+        <TabsContent value="study-plan" className="animate-fade-in">
+          <StudyPlanTab
+            studyPlan={trial.studyPlan}
+            onSave={(studyPlan) => updateTrial(trial.id, { studyPlan })}
+          />
+        </TabsContent>
+
+        <TabsContent value="outcomes" className="animate-fade-in">
+          <OutcomesTab
+            outcomes={trial.outcomes}
+            onSave={(outcomes) => updateTrial(trial.id, { outcomes })}
+          />
+        </TabsContent>
+
+        <TabsContent value="participants" className="animate-fade-in">
+          <ParticipantsTab trialId={trial.id} participants={trial.participants || []} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
