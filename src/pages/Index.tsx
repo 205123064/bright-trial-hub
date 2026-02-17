@@ -1,12 +1,73 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useTrials } from "@/context/TrialContext";
+import { ClinicalTrialCard } from "@/components/ClinicalTrialCard";
+import { TrialFilters } from "@/components/TrialFilters";
+import type { TrialFilters as TF } from "@/types/clinical-trial";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { trials } = useTrials();
+  const [filters, setFilters] = useState<TF>({
+    search: "",
+    phase: "",
+    status: "",
+    location: "",
+    sortBy: "newest",
+  });
+
+  const locations = useMemo(
+    () => [...new Set(trials.map((t) => t.location))].sort(),
+    [trials]
+  );
+
+  const filtered = useMemo(() => {
+    let result = [...trials];
+    const q = filters.search.toLowerCase();
+    if (q) result = result.filter((t) => t.title.toLowerCase().includes(q) || t.condition.toLowerCase().includes(q));
+    if (filters.phase) result = result.filter((t) => t.phase === filters.phase);
+    if (filters.status) result = result.filter((t) => t.status === filters.status);
+    if (filters.location) result = result.filter((t) => t.location === filters.location);
+    result.sort((a, b) => {
+      const da = new Date(a.startDate).getTime();
+      const db = new Date(b.startDate).getTime();
+      return filters.sortBy === "newest" ? db - da : da - db;
+    });
+    return result;
+  }, [trials, filters]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="space-y-6 p-4 lg:p-6">
+      {/* Welcome */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Welcome back, Dr. Patel 👋</h1>
+          <p className="text-muted-foreground">Manage and monitor your clinical trials efficiently.</p>
+        </div>
+        <Button size="lg" onClick={() => navigate("/create-trial")} className="shrink-0">
+          <Plus className="mr-2 h-5 w-5" /> Create New Clinical Trial
+        </Button>
       </div>
+
+      {/* Filters */}
+      <TrialFilters filters={filters} locations={locations} onChange={setFilters} />
+
+      {/* Grid */}
+      {filtered.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {filtered.map((trial) => (
+            <ClinicalTrialCard key={trial.id} trial={trial} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card py-16 text-center">
+          <Search className="mb-3 h-10 w-10 text-muted-foreground/50" />
+          <h3 className="text-lg font-semibold text-foreground">No trials found</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Try adjusting your search or filter criteria.</p>
+        </div>
+      )}
     </div>
   );
 };
