@@ -3,7 +3,7 @@ import type { ClinicalTrial, Patient } from "@/types/clinical-trial";
 
 const MOCK_PATIENTS: Patient[] = [
   {
-    id: "P001", age: 45, sex: "Male", topicId: "T-101",
+    id: "P001", age: 45, sex: "Male", topicId: "T-101", rankingScore: 92,
     semanticRepresentations: ["Lymphoma staging", "Immunotherapy candidate", "PET scan positive"],
     clinicalEntities: [
       { entityType: "Condition", name: "Hodgkin Lymphoma", severity: "Moderate", duration: "6 months", temporalContext: "Current", negated: false },
@@ -12,7 +12,7 @@ const MOCK_PATIENTS: Patient[] = [
     ],
   },
   {
-    id: "P002", age: 62, sex: "Female", topicId: "T-102",
+    id: "P002", age: 62, sex: "Female", topicId: "T-102", rankingScore: 74,
     semanticRepresentations: ["Advanced stage", "Prior chemotherapy", "ECOG 1"],
     clinicalEntities: [
       { entityType: "Condition", name: "Hodgkin Lymphoma", severity: "Severe", duration: "12 months", temporalContext: "Current", negated: false },
@@ -20,14 +20,14 @@ const MOCK_PATIENTS: Patient[] = [
     ],
   },
   {
-    id: "P003", age: 38, sex: "Male", topicId: "T-103",
+    id: "P003", age: 38, sex: "Male", topicId: "T-103", rankingScore: 85,
     semanticRepresentations: ["Early stage", "Treatment naïve", "Low tumor burden"],
     clinicalEntities: [
       { entityType: "Condition", name: "Hodgkin Lymphoma", severity: "Mild", duration: "2 months", temporalContext: "Current", negated: false },
     ],
   },
   {
-    id: "P004", age: 55, sex: "Female", topicId: "T-104",
+    id: "P004", age: 55, sex: "Female", topicId: "T-104", rankingScore: 41,
     semanticRepresentations: ["Relapsed disease", "Stem cell transplant candidate"],
     clinicalEntities: [
       { entityType: "Condition", name: "Hodgkin Lymphoma", severity: "Severe", duration: "18 months", temporalContext: "Recurrent", negated: false },
