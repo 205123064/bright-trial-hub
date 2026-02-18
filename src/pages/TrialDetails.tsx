@@ -9,6 +9,7 @@ import { EligibilityTab } from "@/components/EligibilityTab";
 import { StudyPlanTab } from "@/components/StudyPlanTab";
 import { OutcomesTab } from "@/components/OutcomesTab";
 import { ParticipantsTab } from "@/components/ParticipantsTab";
+import { RankingTab } from "@/components/RankingTab";
 import { useTrials } from "@/context/TrialContext";
 
 export default function TrialDetails() {
@@ -55,6 +56,7 @@ export default function TrialDetails() {
           <TabsTrigger value="study-plan">Study Plan</TabsTrigger>
           <TabsTrigger value="outcomes">Outcomes</TabsTrigger>
           <TabsTrigger value="participants">Participants</TabsTrigger>
+          <TabsTrigger value="ranking">Ranking</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="animate-fade-in">
@@ -84,6 +86,10 @@ export default function TrialDetails() {
 
         <TabsContent value="participants" className="animate-fade-in">
           <ParticipantsTab trialId={trial.id} participants={trial.participants || []} />
+        </TabsContent>
+
+        <TabsContent value="ranking" className="animate-fade-in">
+          <RankingTab participants={trial.participants || []} />
         </TabsContent>
       </Tabs>
     </div>

@@ -57,6 +57,7 @@ export interface Patient {
   age: number;
   sex: string;
   topicId: string;
+  rankingScore: number;
   semanticRepresentations: string[];
   clinicalEntities: ClinicalEntity[];
 }
