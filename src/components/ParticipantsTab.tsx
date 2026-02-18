@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Eye } from "lucide-react";
+import { Search, Eye, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,6 +18,11 @@ export function ParticipantsTab({ trialId, participants }: Props) {
   const [sexFilter, setSexFilter] = useState("");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (file: File) => {
+    console.log(file);
+  };
 
   const filtered = useMemo(() => {
     let result = [...participants];
@@ -31,7 +36,25 @@ export function ParticipantsTab({ trialId, participants }: Props) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-foreground">Participants</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-foreground">Participants</h3>
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleFileSelect(file);
+              e.target.value = "";
+            }}
+          />
+          <Button onClick={() => fileInputRef.current?.click()}>
+            <Upload className="mr-1.5 h-4 w-4" /> Add Participant
+          </Button>
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
