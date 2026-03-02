@@ -52,14 +52,104 @@ export interface ClinicalEntity {
   negated: boolean;
 }
 
+// ── Rich patient data types ──
+
+export interface Diagnosis {
+  name: string;
+  stage?: string;
+  active: boolean;
+}
+
+export interface PerformanceStatus {
+  ecog?: number;
+  karnofsky?: number;
+}
+
+export interface LabResult {
+  test: string;
+  value: number;
+  unit: string;
+  abnormal: boolean;
+  date: string;
+}
+
+export interface ImagingFinding {
+  modality: string;
+  finding: string;
+  date: string;
+}
+
+export interface Treatment {
+  drug: string;
+  line: number;
+  startDate: string;
+  endDate?: string;
+  response: "CR" | "PR" | "SD" | "PD" | "Unknown";
+}
+
+export type EligibilityDecision = "Yes" | "No" | "Unknown";
+
+export interface CriterionResult {
+  criterion: string;
+  decision: EligibilityDecision;
+  justification: string;
+  evidence: string;
+  timestamp: string;
+  modelVersion: string;
+}
+
+export interface EligibilitySummary {
+  met: number;
+  failed: number;
+  unknown: number;
+}
+
+export interface ExclusionSummary {
+  violated: number;
+  safe: number;
+  unknown: number;
+}
+
+export interface EligibilityBreakdown {
+  inclusionSummary: EligibilitySummary;
+  exclusionSummary: ExclusionSummary;
+  inclusionCriteria: CriterionResult[];
+  exclusionCriteria: CriterionResult[];
+  blockingReasons: string[];
+  missingInformation: string[];
+}
+
+export interface ScoreBreakdown {
+  eligibilityScore: number;
+  clinicalQualityScore: number;
+  biomarkerFitScore: number;
+  riskPenalty: number;
+  operationalScore: number;
+}
+
+export type EligibilityStatus = "Eligible" | "Not Eligible" | "Uncertain";
+
 export interface Patient {
   id: string;
   age: number;
   sex: string;
   topicId: string;
   rankingScore: number;
+  eligibilityStatus: EligibilityStatus;
+  primaryDiagnosis: string;
+  ecog: number;
+  riskFlag: boolean;
   semanticRepresentations: string[];
   clinicalEntities: ClinicalEntity[];
+  diagnoses: Diagnosis[];
+  performanceStatus: PerformanceStatus;
+  comorbidities: string[];
+  labResults: LabResult[];
+  imagingFindings: ImagingFinding[];
+  treatments: Treatment[];
+  eligibilityBreakdown: EligibilityBreakdown;
+  scoreBreakdown: ScoreBreakdown;
+  lastEvaluated: string;
 }
 
 export interface ClinicalTrial {

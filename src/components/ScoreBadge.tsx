@@ -6,8 +6,8 @@ interface Props {
 }
 
 function getScoreConfig(score: number) {
-  if (score >= 80) return { label: "Excellent", bg: "bg-[hsl(var(--success))]", text: "text-[hsl(var(--success-foreground))]" };
-  if (score >= 50) return { label: "Moderate", bg: "bg-[hsl(var(--warning))]", text: "text-[hsl(var(--warning-foreground))]" };
+  if (score >= 85) return { label: "Excellent", bg: "bg-[hsl(var(--success))]", text: "text-[hsl(var(--success-foreground))]" };
+  if (score >= 70) return { label: "Moderate", bg: "bg-[hsl(var(--warning))]", text: "text-[hsl(var(--warning-foreground))]" };
   return { label: "Low", bg: "bg-[hsl(var(--destructive))]", text: "text-[hsl(var(--destructive-foreground))]" };
 }
 
