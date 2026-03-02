@@ -6,8 +6,8 @@ interface Props {
 }
 
 function getBarColor(score: number) {
-  if (score >= 80) return "bg-[hsl(var(--success))]";
-  if (score >= 50) return "bg-[hsl(var(--warning))]";
+  if (score >= 85) return "bg-[hsl(var(--success))]";
+  if (score >= 70) return "bg-[hsl(var(--warning))]";
   return "bg-[hsl(var(--destructive))]";
 }
 
