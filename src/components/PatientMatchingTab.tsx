@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Search, SlidersHorizontal, Trophy, ChevronDown, ChevronRight,
+  Search, SlidersHorizontal, Trophy, Upload,
   AlertTriangle, CheckCircle2, HelpCircle, XCircle, Shield, Eye,
-  Activity, FlaskConical, Scan, Pill, FileText, Clock,
+  Activity, Clock, FileText, Plus,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,11 +14,10 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScoreProgressBar } from "@/components/ScoreProgressBar";
 import { cn } from "@/lib/utils";
-import type { Patient, ClinicalTrial, EligibilityStatus, CriterionResult } from "@/types/clinical-trial";
+import type { Patient, ClinicalTrial, EligibilityStatus } from "@/types/clinical-trial";
 
 interface Props {
   trial: ClinicalTrial;
@@ -63,19 +63,6 @@ function statusBadge(status: EligibilityStatus) {
   );
 }
 
-function DecisionBadge({ decision }: { decision: string }) {
-  if (decision === "Yes") return <Badge className="bg-[hsl(var(--success))]/15 text-[hsl(var(--success))] border-[hsl(var(--success))]/30 hover:bg-[hsl(var(--success))]/20" variant="outline"><CheckCircle2 className="mr-1 h-3 w-3" />Met</Badge>;
-  if (decision === "No") return <Badge className="bg-[hsl(var(--destructive))]/15 text-[hsl(var(--destructive))] border-[hsl(var(--destructive))]/30 hover:bg-[hsl(var(--destructive))]/20" variant="outline"><XCircle className="mr-1 h-3 w-3" />Failed</Badge>;
-  return <Badge className="bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/30 hover:bg-[hsl(var(--warning))]/20" variant="outline"><HelpCircle className="mr-1 h-3 w-3" />Unknown</Badge>;
-}
-
-function ExcDecisionBadge({ decision }: { decision: string }) {
-  // For exclusion: "Yes" means violated (bad), "No" means safe (good)
-  if (decision === "Yes") return <Badge className="bg-[hsl(var(--destructive))]/15 text-[hsl(var(--destructive))] border-[hsl(var(--destructive))]/30 hover:bg-[hsl(var(--destructive))]/20" variant="outline"><XCircle className="mr-1 h-3 w-3" />Violated</Badge>;
-  if (decision === "No") return <Badge className="bg-[hsl(var(--success))]/15 text-[hsl(var(--success))] border-[hsl(var(--success))]/30 hover:bg-[hsl(var(--success))]/20" variant="outline"><CheckCircle2 className="mr-1 h-3 w-3" />Safe</Badge>;
-  return <Badge className="bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/30 hover:bg-[hsl(var(--warning))]/20" variant="outline"><HelpCircle className="mr-1 h-3 w-3" />Unknown</Badge>;
-}
-
 /* ── Score Breakdown Dialog ── */
 function ScoreBreakdownDialog({ patient }: { patient: Patient }) {
   const sb = patient.scoreBreakdown;
@@ -89,7 +76,7 @@ function ScoreBreakdownDialog({ patient }: { patient: Patient }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-primary">
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-primary" onClick={(e) => e.stopPropagation()}>
           <Eye className="h-3 w-3" /> View Breakdown
         </Button>
       </DialogTrigger>
@@ -124,264 +111,101 @@ function ScoreBreakdownDialog({ patient }: { patient: Patient }) {
   );
 }
 
-/* ── Criteria Row ── */
-function CriteriaRow({ c, isExclusion }: { c: CriterionResult; isExclusion?: boolean }) {
-  const [open, setOpen] = useState(false);
+/* ── Upload XML Modal ── */
+function UploadXmlDialog() {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
+
+  const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError("");
+    setStatus("idle");
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+    if (!selected.name.toLowerCase().endsWith(".xml")) {
+      setError("Only .xml files are accepted.");
+      setFile(null);
+      return;
+    }
+    if (selected.size > 10 * 1024 * 1024) {
+      setError("File size must be under 10 MB.");
+      setFile(null);
+      return;
+    }
+    setFile(selected);
+  };
+
+  const handleUpload = () => {
+    if (!file) return;
+    setStatus("processing");
+    // Frontend-only: log file and simulate success
+    console.log("Uploaded XML file:", file);
+    setTimeout(() => setStatus("success"), 1200);
+  };
+
   return (
-    <div className="rounded-md border border-border bg-card">
-      <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between px-3 py-2 text-left">
-        <div className="flex items-center gap-2 text-sm">
-          {open ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-          <span className="text-foreground">{c.criterion}</span>
+    <Dialog onOpenChange={() => { setFile(null); setError(""); setStatus("idle"); }}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="gap-1.5">
+          <Plus className="h-4 w-4" /> Add Participant
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5 text-primary" /> Upload Patient XML
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <p className="text-sm text-muted-foreground">Upload a patient XML file to parse, evaluate eligibility, and add to this trial.</p>
+
+          <div
+            className={cn(
+              "flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors",
+              error ? "border-[hsl(var(--destructive))]/50 bg-[hsl(var(--destructive))]/5" : "border-border hover:border-primary/50 hover:bg-primary/5"
+            )}
+            onClick={() => fileRef.current?.click()}
+          >
+            <Upload className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">{file ? file.name : "Click to select an XML file"}</p>
+            <p className="text-xs text-muted-foreground">Accepts .xml only · Max 10 MB</p>
+          </div>
+
+          <input ref={fileRef} type="file" accept=".xml" className="hidden" onChange={handleSelect} />
+
+          {error && <p className="text-sm text-[hsl(var(--destructive))]">{error}</p>}
+
+          {status === "processing" && (
+            <div className="flex items-center gap-2 text-sm text-primary">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              Processing...
+            </div>
+          )}
+          {status === "success" && (
+            <p className="flex items-center gap-1.5 text-sm text-[hsl(var(--success))]">
+              <CheckCircle2 className="h-4 w-4" /> Patient added successfully.
+            </p>
+          )}
+          {status === "error" && (
+            <p className="flex items-center gap-1.5 text-sm text-[hsl(var(--destructive))]">
+              <XCircle className="h-4 w-4" /> Failed to process file.
+            </p>
+          )}
+
+          <Button onClick={handleUpload} disabled={!file || status === "processing" || status === "success"} className="w-full">
+            Upload & Evaluate
+          </Button>
         </div>
-        {isExclusion ? <ExcDecisionBadge decision={c.decision} /> : <DecisionBadge decision={c.decision} />}
-      </button>
-      {open && (
-        <div className="border-t border-border px-3 py-2 space-y-1 text-xs text-muted-foreground bg-muted/30">
-          <p><span className="font-medium text-foreground">Justification:</span> {c.justification}</p>
-          <p><span className="font-medium text-foreground">Evidence:</span> {c.evidence}</p>
-          <p><span className="font-medium text-foreground">Evaluated:</span> {new Date(c.timestamp).toLocaleString()}</p>
-          <p><span className="font-medium text-foreground">Model:</span> {c.modelVersion}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ── Expanded Patient Row ── */
-function ExpandedPatientView({ patient }: { patient: Patient }) {
-  const eb = patient.eligibilityBreakdown;
-  return (
-    <div className="animate-fade-in space-y-5 p-4 bg-muted/20">
-      {/* Section A: Clinical Summary */}
-      <Card className="shadow-none border-border">
-        <CardHeader className="pb-2 pt-3 px-4">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-            <Activity className="h-4 w-4 text-primary" /> Clinical Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-3 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <p className="text-xs text-muted-foreground">Diagnoses</p>
-              <div className="mt-1 space-y-1">
-                {patient.diagnoses.map((d, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm">
-                    <span className={cn("h-1.5 w-1.5 rounded-full", d.active ? "bg-[hsl(var(--destructive))]" : "bg-muted-foreground")} />
-                    <span className="font-medium text-foreground">{d.name}</span>
-                    {d.stage && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{d.stage}</Badge>}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Performance Status</p>
-              <div className="mt-1 text-sm">
-                <p className="text-foreground">ECOG: <span className="font-semibold">{patient.performanceStatus.ecog}</span></p>
-                {patient.performanceStatus.karnofsky != null && <p className="text-foreground">Karnofsky: <span className="font-semibold">{patient.performanceStatus.karnofsky}%</span></p>}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Comorbidities</p>
-              <div className="mt-1">
-                {patient.comorbidities.length > 0 ? (
-                  <div className="flex flex-wrap gap-1">
-                    {patient.comorbidities.map((c, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">{c}</Badge>
-                    ))}
-                  </div>
-                ) : <p className="text-sm text-muted-foreground">None</p>}
-              </div>
-            </div>
-          </div>
-          {/* Key symptoms from clinical entities */}
-          {patient.clinicalEntities.filter(e => e.entityType === "Symptom").length > 0 && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Key Symptoms</p>
-              <div className="flex flex-wrap gap-1.5">
-                {patient.clinicalEntities.filter(e => e.entityType === "Symptom").map((e, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-0.5 text-xs">
-                    {e.name} <span className="text-muted-foreground">({e.severity}, {e.duration})</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Section B: Lab Results */}
-      {patient.labResults.length > 0 && (
-        <Card className="shadow-none border-border">
-          <CardHeader className="pb-2 pt-3 px-4">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <FlaskConical className="h-4 w-4 text-primary" /> Lab Results
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-3">
-            <div className="rounded-md border border-border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="text-xs h-8">Test</TableHead>
-                    <TableHead className="text-xs h-8">Value</TableHead>
-                    <TableHead className="text-xs h-8">Unit</TableHead>
-                    <TableHead className="text-xs h-8">Status</TableHead>
-                    <TableHead className="text-xs h-8">Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {patient.labResults.map((l, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="py-1.5 text-xs font-medium">{l.test}</TableCell>
-                      <TableCell className={cn("py-1.5 text-xs font-semibold", l.abnormal && "text-[hsl(var(--destructive))]")}>{l.value}</TableCell>
-                      <TableCell className="py-1.5 text-xs text-muted-foreground">{l.unit}</TableCell>
-                      <TableCell className="py-1.5 text-xs">
-                        {l.abnormal ? (
-                          <span className="inline-flex items-center gap-1 text-[hsl(var(--destructive))]"><AlertTriangle className="h-3 w-3" /> Abnormal</span>
-                        ) : (
-                          <span className="text-muted-foreground">Normal</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-1.5 text-xs text-muted-foreground">{l.date}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Section C: Imaging Findings */}
-      {patient.imagingFindings.length > 0 && (
-        <Card className="shadow-none border-border">
-          <CardHeader className="pb-2 pt-3 px-4">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Scan className="h-4 w-4 text-primary" /> Imaging Findings
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-3">
-            <div className="grid gap-2 sm:grid-cols-2">
-              {patient.imagingFindings.map((img, i) => (
-                <div key={i} className="rounded-md border border-border bg-card p-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="secondary" className="text-xs">{img.modality}</Badge>
-                    <span className="text-xs text-muted-foreground">{img.date}</span>
-                  </div>
-                  <p className="text-sm text-foreground">{img.finding}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Section D: Treatment History */}
-      {patient.treatments.length > 0 && (
-        <Card className="shadow-none border-border">
-          <CardHeader className="pb-2 pt-3 px-4">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Pill className="h-4 w-4 text-primary" /> Treatment History
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-3">
-            <div className="relative space-y-3 pl-6 before:absolute before:left-2 before:top-1 before:h-[calc(100%-8px)] before:w-px before:bg-border">
-              {patient.treatments.map((t, i) => {
-                const responseColor: Record<string, string> = { CR: "text-[hsl(var(--success))]", PR: "text-[hsl(var(--info))]", SD: "text-[hsl(var(--warning))]", PD: "text-[hsl(var(--destructive))]", Unknown: "text-muted-foreground" };
-                return (
-                  <div key={i} className="relative">
-                    <div className="absolute -left-[18px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-primary bg-card" />
-                    <div className="rounded-md border border-border bg-card p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-foreground">{t.drug}</span>
-                        <Badge variant="outline" className="text-xs">Line {t.line}</Badge>
-                      </div>
-                      <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>{t.startDate} → {t.endDate || "Ongoing"}</span>
-                        <span className={cn("font-semibold", responseColor[t.response] || "text-muted-foreground")}>
-                          Response: {t.response}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Section E: Eligibility Breakdown */}
-      <Card className="shadow-none border-border">
-        <CardHeader className="pb-2 pt-3 px-4">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-            <FileText className="h-4 w-4 text-primary" /> Eligibility Breakdown
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-3 space-y-4">
-          {/* Summaries */}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-md border border-border p-3">
-              <p className="text-xs font-semibold text-foreground mb-2">Inclusion Summary</p>
-              <div className="flex gap-3 text-xs">
-                <span className="text-[hsl(var(--success))]">✓ Met: {eb.inclusionSummary.met}</span>
-                <span className="text-[hsl(var(--destructive))]">✗ Failed: {eb.inclusionSummary.failed}</span>
-                <span className="text-[hsl(var(--warning))]">? Unknown: {eb.inclusionSummary.unknown}</span>
-              </div>
-            </div>
-            <div className="rounded-md border border-border p-3">
-              <p className="text-xs font-semibold text-foreground mb-2">Exclusion Summary</p>
-              <div className="flex gap-3 text-xs">
-                <span className="text-[hsl(var(--destructive))]">⚠ Violated: {eb.exclusionSummary.violated}</span>
-                <span className="text-[hsl(var(--success))]">✓ Safe: {eb.exclusionSummary.safe}</span>
-                <span className="text-[hsl(var(--warning))]">? Unknown: {eb.exclusionSummary.unknown}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Blocking Reasons */}
-          {eb.blockingReasons.length > 0 && (
-            <div className="rounded-md border border-[hsl(var(--destructive))]/30 bg-[hsl(var(--destructive))]/5 p-3">
-              <p className="text-xs font-semibold text-[hsl(var(--destructive))] mb-1 flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Blocking Reasons</p>
-              <ul className="list-disc list-inside space-y-0.5 text-xs text-foreground">
-                {eb.blockingReasons.map((r, i) => <li key={i}>{r}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {/* Missing Information */}
-          {eb.missingInformation.length > 0 && (
-            <div className="rounded-md border border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/5 p-3">
-              <p className="text-xs font-semibold text-[hsl(var(--warning))] mb-1 flex items-center gap-1"><HelpCircle className="h-3.5 w-3.5" /> Missing Information</p>
-              <ul className="list-disc list-inside space-y-0.5 text-xs text-foreground">
-                {eb.missingInformation.map((m, i) => <li key={i}>{m}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {/* Criteria Details */}
-          <div>
-            <p className="text-xs font-semibold text-foreground mb-2">Inclusion Criteria</p>
-            <div className="space-y-1.5">
-              {eb.inclusionCriteria.map((c, i) => <CriteriaRow key={i} c={c} />)}
-            </div>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-foreground mb-2">Exclusion Criteria</p>
-            <div className="space-y-1.5">
-              {eb.exclusionCriteria.map((c, i) => <CriteriaRow key={i} c={c} isExclusion />)}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 /* ── Main Component ── */
 
 export function PatientMatchingTab({ trial }: Props) {
+  const navigate = useNavigate();
   const participants = trial.participants || [];
   const [search, setSearch] = useState("");
   const [sexFilter, setSexFilter] = useState("");
@@ -391,7 +215,6 @@ export function PatientMatchingTab({ trial }: Props) {
   const [eligibilityFilter, setEligibilityFilter] = useState("");
   const [showInclusionFailures, setShowInclusionFailures] = useState(false);
   const [showMissingData, setShowMissingData] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const sorted = useMemo(() => {
     let result = [...participants];
@@ -407,7 +230,6 @@ export function PatientMatchingTab({ trial }: Props) {
     return result.sort((a, b) => b.rankingScore - a.rankingScore);
   }, [participants, search, sexFilter, ageMin, ageMax, minScore, eligibilityFilter, showInclusionFailures, showMissingData]);
 
-  // Metrics
   const totalScreened = participants.length;
   const eligibleCount = participants.filter(p => p.eligibilityStatus === "Eligible").length;
   const avgScore = totalScreened > 0 ? Math.round(participants.reduce((s, p) => s + p.rankingScore, 0) / totalScreened) : 0;
@@ -418,9 +240,12 @@ export function PatientMatchingTab({ trial }: Props) {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <Trophy className="h-5 w-5 text-primary" />
-        <h3 className="text-lg font-semibold text-foreground">Patient Matching</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-primary" />
+          <h3 className="text-lg font-semibold text-foreground">Patient Matching</h3>
+        </div>
+        <UploadXmlDialog />
       </div>
 
       {/* Metrics Bar */}
@@ -489,7 +314,7 @@ export function PatientMatchingTab({ trial }: Props) {
         </div>
       </div>
 
-      {/* Unified Table */}
+      {/* Unified Table – Clean, no accordion */}
       {sorted.length > 0 ? (
         <div className="rounded-lg border border-border">
           <Table>
@@ -504,72 +329,68 @@ export function PatientMatchingTab({ trial }: Props) {
                 <TableHead className="min-w-[180px]">Match Score</TableHead>
                 <TableHead>Eligibility</TableHead>
                 <TableHead>Risk</TableHead>
-                <TableHead className="w-[40px]" />
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sorted.map((p, idx) => {
                 const rank = idx + 1;
                 const isTop3 = rank <= 3;
-                const isExpanded = expandedId === p.id;
 
                 return (
-                  <React.Fragment key={p.id}>
-                    <TableRow
-                      className={cn(
-                        "cursor-pointer border-l-4 transition-colors hover:bg-muted/50",
-                        getScoreBorderL(p.rankingScore),
-                        isTop3 && "bg-primary/[0.03]",
-                        isExpanded && "bg-muted/30"
-                      )}
-                      onClick={() => setExpandedId(isExpanded ? null : p.id)}
-                    >
-                      <TableCell className="font-bold">
-                        {isTop3 ? (
-                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                            {rank}
-                          </span>
-                        ) : rank}
-                      </TableCell>
-                      <TableCell className="font-medium">{p.id}</TableCell>
-                      <TableCell>{p.age}</TableCell>
-                      <TableCell>{p.sex}</TableCell>
-                      <TableCell className="text-sm">{p.primaryDiagnosis}</TableCell>
-                      <TableCell>
-                        <span className={cn("font-semibold", p.ecog >= 3 ? "text-[hsl(var(--destructive))]" : "text-foreground")}>{p.ecog}</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className={cn("text-sm font-bold", getScoreColor(p.rankingScore))}>{p.rankingScore}</span>
-                            <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white", getScoreBg(p.rankingScore))}>
-                              {getScoreLabel(p.rankingScore)}
-                            </span>
-                          </div>
-                          <ScoreProgressBar score={p.rankingScore} />
-                          <ScoreBreakdownDialog patient={p} />
-                        </div>
-                      </TableCell>
-                      <TableCell>{statusBadge(p.eligibilityStatus)}</TableCell>
-                      <TableCell>
-                        {p.riskFlag ? (
-                          <AlertTriangle className="h-4 w-4 text-[hsl(var(--destructive))]" />
-                        ) : (
-                          <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success))]" />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                      </TableCell>
-                    </TableRow>
-                    {isExpanded && (
-                      <TableRow>
-                        <TableCell colSpan={10} className="p-0">
-                          <ExpandedPatientView patient={p} />
-                        </TableCell>
-                      </TableRow>
+                  <TableRow
+                    key={p.id}
+                    className={cn(
+                      "border-l-4 transition-colors hover:bg-muted/50",
+                      getScoreBorderL(p.rankingScore),
+                      isTop3 && "bg-primary/[0.03]",
                     )}
-                  </React.Fragment>
+                  >
+                    <TableCell className="font-bold">
+                      {isTop3 ? (
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                          {rank}
+                        </span>
+                      ) : rank}
+                    </TableCell>
+                    <TableCell className="font-medium">{p.id}</TableCell>
+                    <TableCell>{p.age}</TableCell>
+                    <TableCell>{p.sex}</TableCell>
+                    <TableCell className="text-sm">{p.primaryDiagnosis}</TableCell>
+                    <TableCell>
+                      <span className={cn("font-semibold", p.ecog >= 3 ? "text-[hsl(var(--destructive))]" : "text-foreground")}>{p.ecog}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("text-sm font-bold", getScoreColor(p.rankingScore))}>{p.rankingScore}</span>
+                          <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white", getScoreBg(p.rankingScore))}>
+                            {getScoreLabel(p.rankingScore)}
+                          </span>
+                        </div>
+                        <ScoreProgressBar score={p.rankingScore} />
+                        <ScoreBreakdownDialog patient={p} />
+                      </div>
+                    </TableCell>
+                    <TableCell>{statusBadge(p.eligibilityStatus)}</TableCell>
+                    <TableCell>
+                      {p.riskFlag ? (
+                        <AlertTriangle className="h-4 w-4 text-[hsl(var(--destructive))]" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success))]" />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        onClick={() => navigate(`/trial/${trial.id}/patient/${p.id}`)}
+                      >
+                        <Eye className="h-3.5 w-3.5" /> View
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
             </TableBody>

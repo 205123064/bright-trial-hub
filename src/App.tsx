@@ -8,6 +8,7 @@ import DashboardLayout from "@/layouts/DashboardLayout";
 import Index from "./pages/Index";
 import CreateTrial from "./pages/CreateTrial";
 import TrialDetails from "./pages/TrialDetails";
+import PatientDetail from "./pages/PatientDetail";
 
 import NotFound from "./pages/NotFound";
 
