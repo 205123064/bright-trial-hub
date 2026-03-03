@@ -26,6 +26,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/create-trial" element={<CreateTrial />} />
               <Route path="/trial/:id" element={<TrialDetails />} />
+              <Route path="/trial/:id/patient/:patientId" element={<PatientDetail />} />
               
             </Route>
             <Route path="*" element={<NotFound />} />
