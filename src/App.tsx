@@ -8,6 +8,7 @@ import DashboardLayout from "@/layouts/DashboardLayout";
 import Index from "./pages/Index";
 import CreateTrial from "./pages/CreateTrial";
 import TrialDetails from "./pages/TrialDetails";
+import PatientDetail from "./pages/PatientDetail";
 
 import NotFound from "./pages/NotFound";
 
@@ -25,6 +26,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/create-trial" element={<CreateTrial />} />
               <Route path="/trial/:id" element={<TrialDetails />} />
+              <Route path="/trial/:id/patient/:patientId" element={<PatientDetail />} />
               
             </Route>
             <Route path="*" element={<NotFound />} />
