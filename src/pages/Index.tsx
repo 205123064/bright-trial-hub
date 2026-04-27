@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTrials } from "@/context/TrialContext";
 import { ClinicalTrialCard } from "@/components/ClinicalTrialCard";
@@ -9,7 +9,7 @@ import type { TrialFilters as TF } from "@/types/clinical-trial";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { trials } = useTrials();
+  const { trials, loading, error, refresh } = useTrials();
   const [filters, setFilters] = useState<TF>({
     search: "",
     phase: "",
@@ -54,20 +54,40 @@ const Index = () => {
       {/* Filters */}
       <TrialFilters filters={filters} locations={locations} onChange={setFilters} />
 
+      {/* Loading */}
+      {loading && trials.length === 0 && (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card py-16 text-center">
+          <Loader2 className="mb-3 h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading clinical trials...</p>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && !loading && (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 py-12 text-center">
+          <AlertTriangle className="mb-3 h-8 w-8 text-destructive" />
+          <h3 className="text-lg font-semibold text-foreground">Could not load trials</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          <Button variant="outline" size="sm" className="mt-4 gap-2" onClick={() => refresh()}>
+            <RefreshCw className="h-4 w-4" /> Retry
+          </Button>
+        </div>
+      )}
+
       {/* Grid */}
-      {filtered.length > 0 ? (
+      {!loading && !error && filtered.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filtered.map((trial) => (
             <ClinicalTrialCard key={trial.id} trial={trial} />
           ))}
         </div>
-      ) : (
+      ) : !loading && !error ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card py-16 text-center">
           <Search className="mb-3 h-10 w-10 text-muted-foreground/50" />
           <h3 className="text-lg font-semibold text-foreground">No trials found</h3>
           <p className="mt-1 text-sm text-muted-foreground">Try adjusting your search or filter criteria.</p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

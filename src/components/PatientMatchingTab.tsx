@@ -1,9 +1,9 @@
-import React, { useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, SlidersHorizontal, Trophy, Upload,
   AlertTriangle, CheckCircle2, HelpCircle, XCircle, Shield, Eye,
-  Activity, Clock, FileText, Plus,
+  Activity, Clock, FileText, Plus, Loader2, RefreshCw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Separator } from "@/components/ui/separator";
 import { ScoreProgressBar } from "@/components/ScoreProgressBar";
 import { cn } from "@/lib/utils";
+import { useTrials } from "@/context/TrialContext";
+import { PatientsAPI, ApiError } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import type { Patient, ClinicalTrial, EligibilityStatus } from "@/types/clinical-trial";
 
 interface Props {
@@ -112,11 +115,18 @@ function ScoreBreakdownDialog({ patient }: { patient: Patient }) {
 }
 
 /* ── Upload XML Modal ── */
-function UploadXmlDialog() {
+function UploadXmlDialog({ trialId, onUploaded }: { trialId: string; onUploaded: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
+  const { toast } = useToast();
+
+  const reset = () => {
+    setFile(null);
+    setError("");
+    setStatus("idle");
+  };
 
   const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError("");
@@ -136,16 +146,26 @@ function UploadXmlDialog() {
     setFile(selected);
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!file) return;
     setStatus("processing");
-    // Frontend-only: log file and simulate success
-    console.log("Uploaded XML file:", file);
-    setTimeout(() => setStatus("success"), 1200);
+    setError("");
+    try {
+      await PatientsAPI.uploadXml(trialId, file);
+      setStatus("success");
+      toast({ title: "Patient added", description: "XML parsed and ranking updated." });
+      onUploaded();
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "Upload failed";
+      setStatus("error");
+      setError(msg);
+      // eslint-disable-next-line no-console
+      console.error("Upload XML failed:", e);
+    }
   };
 
   return (
-    <Dialog onOpenChange={() => { setFile(null); setError(""); setStatus("idle"); }}>
+    <Dialog onOpenChange={(open) => { if (!open) reset(); }}>
       <DialogTrigger asChild>
         <Button size="sm" className="gap-1.5">
           <Plus className="h-4 w-4" /> Add Participant
@@ -187,11 +207,6 @@ function UploadXmlDialog() {
               <CheckCircle2 className="h-4 w-4" /> Patient added successfully.
             </p>
           )}
-          {status === "error" && (
-            <p className="flex items-center gap-1.5 text-sm text-[hsl(var(--destructive))]">
-              <XCircle className="h-4 w-4" /> Failed to process file.
-            </p>
-          )}
 
           <Button onClick={handleUpload} disabled={!file || status === "processing" || status === "success"} className="w-full">
             Upload & Evaluate
@@ -206,7 +221,27 @@ function UploadXmlDialog() {
 
 export function PatientMatchingTab({ trial }: Props) {
   const navigate = useNavigate();
+  const { fetchPatients } = useTrials();
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const participants = trial.participants || [];
+
+  const loadPatients = React.useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      await fetchPatients(trial.id);
+    } catch (e) {
+      setLoadError(e instanceof ApiError ? e.message : "Failed to load patients");
+    } finally {
+      setLoading(false);
+    }
+  }, [trial.id, fetchPatients]);
+
+  useEffect(() => {
+    loadPatients();
+  }, [loadPatients]);
+
   const [search, setSearch] = useState("");
   const [sexFilter, setSexFilter] = useState("");
   const [ageMin, setAgeMin] = useState("");
@@ -244,9 +279,21 @@ export function PatientMatchingTab({ trial }: Props) {
         <div className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-semibold text-foreground">Patient Matching</h3>
+          {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </div>
-        <UploadXmlDialog />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={loadPatients} className="gap-1.5" disabled={loading}>
+            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} /> Refresh
+          </Button>
+          <UploadXmlDialog trialId={trial.id} onUploaded={loadPatients} />
+        </div>
       </div>
+
+      {loadError && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
+          <AlertTriangle className="h-4 w-4" /> {loadError}
+        </div>
+      )}
 
       {/* Metrics Bar */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

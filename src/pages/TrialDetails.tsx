@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PhaseBadge } from "@/components/PhaseBadge";
@@ -14,8 +15,22 @@ import { useTrials } from "@/context/TrialContext";
 export default function TrialDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getTrialById, updateTrial } = useTrials();
+  const { getTrialById, updateTrial, fetchTrial, loading } = useTrials();
   const trial = id ? getTrialById(id) : undefined;
+
+  // Always fetch a fresh copy when the route id changes
+  useEffect(() => {
+    if (id) fetchTrial(id);
+  }, [id, fetchTrial]);
+
+  if (!trial && loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-16 text-center">
+        <Loader2 className="mb-3 h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading trial...</p>
+      </div>
+    );
+  }
 
   if (!trial) {
     return (

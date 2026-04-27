@@ -43,12 +43,12 @@ export default function CreateTrial() {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    setTimeout(() => {
-      addTrial({
+    try {
+      await addTrial({
         title: form.title.trim(),
         phase: form.phase as TrialPhase,
         status: form.status as TrialStatus,
@@ -59,9 +59,12 @@ export default function CreateTrial() {
         description: form.description.trim(),
       });
       toast({ title: "Trial created", description: `"${form.title}" has been added successfully.` });
-      setLoading(false);
       navigate("/");
-    }, 500);
+    } catch (err) {
+      toast({ title: "Failed to create trial", description: String(err), variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const field = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }));
