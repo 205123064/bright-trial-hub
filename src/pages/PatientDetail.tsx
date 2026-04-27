@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft, Activity, FlaskConical, Scan, Pill, FileText, Shield,
-  AlertTriangle, CheckCircle2, XCircle, HelpCircle, ChevronDown, ChevronRight, Eye, Clock,
+  AlertTriangle, CheckCircle2, XCircle, HelpCircle, ChevronDown, ChevronRight, Eye, Clock, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -137,9 +137,31 @@ function ScoreBreakdownDialog({ patient }: { patient: Patient }) {
 export default function PatientDetail() {
   const { id: trialId, patientId } = useParams<{ id: string; patientId: string }>();
   const navigate = useNavigate();
-  const { getTrialById } = useTrials();
+  const { getTrialById, fetchTrial, fetchPatients } = useTrials();
   const trial = trialId ? getTrialById(trialId) : undefined;
   const patient = trial?.participants?.find((p) => p.id === patientId);
+  const [bootstrapping, setBootstrapping] = useState(!patient);
+
+  // Ensure trial + patients are loaded if user landed here directly
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!trialId) return;
+      if (!trial) await fetchTrial(trialId);
+      if (!trial?.participants?.length) await fetchPatients(trialId);
+      if (!cancelled) setBootstrapping(false);
+    })();
+    return () => { cancelled = true; };
+  }, [trialId, trial, fetchTrial, fetchPatients]);
+
+  if (bootstrapping) {
+    return (
+      <div className="flex flex-col items-center justify-center p-16 text-center">
+        <Loader2 className="mb-3 h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading patient...</p>
+      </div>
+    );
+  }
 
   if (!trial || !patient) {
     return (
