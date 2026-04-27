@@ -1,9 +1,9 @@
-import React, { useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, SlidersHorizontal, Trophy, Upload,
   AlertTriangle, CheckCircle2, HelpCircle, XCircle, Shield, Eye,
-  Activity, Clock, FileText, Plus,
+  Activity, Clock, FileText, Plus, Loader2, RefreshCw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Separator } from "@/components/ui/separator";
 import { ScoreProgressBar } from "@/components/ScoreProgressBar";
 import { cn } from "@/lib/utils";
+import { useTrials } from "@/context/TrialContext";
+import { PatientsAPI, ApiError } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import type { Patient, ClinicalTrial, EligibilityStatus } from "@/types/clinical-trial";
 
 interface Props {
@@ -112,11 +115,18 @@ function ScoreBreakdownDialog({ patient }: { patient: Patient }) {
 }
 
 /* ── Upload XML Modal ── */
-function UploadXmlDialog() {
+function UploadXmlDialog({ trialId, onUploaded }: { trialId: string; onUploaded: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
+  const { toast } = useToast();
+
+  const reset = () => {
+    setFile(null);
+    setError("");
+    setStatus("idle");
+  };
 
   const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError("");
@@ -136,16 +146,26 @@ function UploadXmlDialog() {
     setFile(selected);
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!file) return;
     setStatus("processing");
-    // Frontend-only: log file and simulate success
-    console.log("Uploaded XML file:", file);
-    setTimeout(() => setStatus("success"), 1200);
+    setError("");
+    try {
+      await PatientsAPI.uploadXml(trialId, file);
+      setStatus("success");
+      toast({ title: "Patient added", description: "XML parsed and ranking updated." });
+      onUploaded();
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "Upload failed";
+      setStatus("error");
+      setError(msg);
+      // eslint-disable-next-line no-console
+      console.error("Upload XML failed:", e);
+    }
   };
 
   return (
-    <Dialog onOpenChange={() => { setFile(null); setError(""); setStatus("idle"); }}>
+    <Dialog onOpenChange={(open) => { if (!open) reset(); }}>
       <DialogTrigger asChild>
         <Button size="sm" className="gap-1.5">
           <Plus className="h-4 w-4" /> Add Participant
@@ -185,11 +205,6 @@ function UploadXmlDialog() {
           {status === "success" && (
             <p className="flex items-center gap-1.5 text-sm text-[hsl(var(--success))]">
               <CheckCircle2 className="h-4 w-4" /> Patient added successfully.
-            </p>
-          )}
-          {status === "error" && (
-            <p className="flex items-center gap-1.5 text-sm text-[hsl(var(--destructive))]">
-              <XCircle className="h-4 w-4" /> Failed to process file.
             </p>
           )}
 
