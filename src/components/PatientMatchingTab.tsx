@@ -221,7 +221,27 @@ function UploadXmlDialog({ trialId, onUploaded }: { trialId: string; onUploaded:
 
 export function PatientMatchingTab({ trial }: Props) {
   const navigate = useNavigate();
+  const { fetchPatients } = useTrials();
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const participants = trial.participants || [];
+
+  const loadPatients = React.useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      await fetchPatients(trial.id);
+    } catch (e) {
+      setLoadError(e instanceof ApiError ? e.message : "Failed to load patients");
+    } finally {
+      setLoading(false);
+    }
+  }, [trial.id, fetchPatients]);
+
+  useEffect(() => {
+    loadPatients();
+  }, [loadPatients]);
+
   const [search, setSearch] = useState("");
   const [sexFilter, setSexFilter] = useState("");
   const [ageMin, setAgeMin] = useState("");
@@ -259,9 +279,21 @@ export function PatientMatchingTab({ trial }: Props) {
         <div className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-semibold text-foreground">Patient Matching</h3>
+          {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </div>
-        <UploadXmlDialog />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={loadPatients} className="gap-1.5" disabled={loading}>
+            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} /> Refresh
+          </Button>
+          <UploadXmlDialog trialId={trial.id} onUploaded={loadPatients} />
+        </div>
       </div>
+
+      {loadError && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
+          <AlertTriangle className="h-4 w-4" /> {loadError}
+        </div>
+      )}
 
       {/* Metrics Bar */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
