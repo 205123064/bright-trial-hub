@@ -14,7 +14,7 @@
 
 const BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ||
-  "http://localhost:5000/api";
+  "https://medtrial-backend.onrender.com/api";
 
 export class ApiError extends Error {
   status: number;
@@ -103,7 +103,7 @@ export const TrialsAPI = {
 
   // NOTE: currently expected backend route per user: GET /:trialId for participants.
   patients: async (trialId: string): Promise<Patient[]> => {
-    const res = await api.get<unknown>(`/${trialId}`);
+    const res = await api.get<unknown>(`/patients/${trialId}`);
     const arr = unwrap<Patient[]>(res, "patients", "participants", "data");
     return Array.isArray(arr) ? arr.map(normalizePatient) : [];
   },
@@ -124,57 +124,163 @@ export const TrialsAPI = {
 /* ── Patient endpoints ── */
 export const PatientsAPI = {
   uploadXml: async (trialId: string, file: File): Promise<Patient> => {
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("trialId", trialId);
-    const res = await api.post<unknown>("/patients/upload-xml", fd);
-    return normalizePatient(unwrap<Patient>(res, "patient", "data"));
-  },
+  const fd = new FormData();
+  fd.append("file", file);
+
+  const res = await api.post(`/patients/${trialId}/upload-xml`, fd);
+
+  return normalizePatient(unwrap<Patient>(res, "patient", "data"));
+},
 };
 
 /* ── Normalizers: ensure Mongo `_id` becomes `id` and required nested fields exist ── */
+// function normalizeTrial(t: any): ClinicalTrial {
+//   if (!t) return t;
+//   return {
+//     ...t,
+//     id: t.id ?? t._id ?? "",
+//     eligibility: t.eligibility ?? { inclusion: [], exclusion: [] },
+//     studyPlan: t.studyPlan,
+//     outcomes: t.outcomes ?? { primary: [], secondary: [] },
+//     participants: Array.isArray(t.participants)
+//       ? t.participants.map(normalizePatient)
+//       : [],
+//   };
+// }
+
+// function normalizePatient(p: any): Patient {
+//   if (!p) return p;
+//   return {
+//     ...p,
+//     id: p.id ?? p._id ?? "",
+//     semanticRepresentations: p.semanticRepresentations ?? [],
+//     clinicalEntities: p.clinicalEntities ?? [],
+//     diagnoses: p.diagnoses ?? [],
+//     performanceStatus: p.performanceStatus ?? { ecog: p.ecog ?? 0 },
+//     comorbidities: p.comorbidities ?? [],
+//     labResults: p.labResults ?? [],
+//     imagingFindings: p.imagingFindings ?? [],
+//     treatments: p.treatments ?? [],
+//     eligibilityBreakdown: p.eligibilityBreakdown ?? {
+//       inclusionSummary: { met: 0, failed: 0, unknown: 0 },
+//       exclusionSummary: { violated: 0, safe: 0, unknown: 0 },
+//       inclusionCriteria: [],
+//       exclusionCriteria: [],
+//       blockingReasons: [],
+//       missingInformation: [],
+//     },
+//     scoreBreakdown: p.scoreBreakdown ?? {
+//       eligibilityScore: 0,
+//       clinicalQualityScore: 0,
+//       biomarkerFitScore: 0,
+//       riskPenalty: 0,
+//       operationalScore: 0,
+//     },
+//     lastEvaluated: p.lastEvaluated ?? new Date().toISOString(),
+//   };
+// }
 function normalizeTrial(t: any): ClinicalTrial {
   if (!t) return t;
+
+  const overview = t.trialoverview || {};
+
   return {
-    ...t,
-    id: t.id ?? t._id ?? "",
-    eligibility: t.eligibility ?? { inclusion: [], exclusion: [] },
+    id: t._id ?? t.id ?? "",
+
+    // ✅ FLATTEN HERE
+    title: overview.trialTitle,
+    phase: overview.phase,
+    status: overview.status,
+    condition: overview.condition,
+    location: overview.location,
+    enrollment: overview.enrollmentTarget,
+    startDate: overview.startDate
+  ? new Date(overview.startDate).toISOString()
+  : "",
+
+    description: overview.description,
+    agesEligible: `${overview.minimumage}-${overview.maximumage}`,
+    sexesEligible: overview.sex,
+    acceptsHealthyVolunteers: false, // optional
+
     studyPlan: t.studyPlan,
-    outcomes: t.outcomes ?? { primary: [], secondary: [] },
-    participants: Array.isArray(t.participants)
-      ? t.participants.map(normalizePatient)
-      : [],
+    outcomes:
+  t.outcomes && typeof t.outcomes === "object" && !Array.isArray(t.outcomes)
+    ? t.outcomes
+    : { primary: [], secondary: [] },
+    eligibility: t.eligiblityCriteria  ?? { inclusion: [], exclusion: [] },
+
+    participants: [],
   };
 }
-
 function normalizePatient(p: any): Patient {
   if (!p) return p;
+
+  // Flatten trialMatches for the current trial
+  const latestMatch = Array.isArray(p.trialMatches) && p.trialMatches.length > 0
+    ? p.trialMatches[0]
+    : null;
+
   return {
     ...p,
-    id: p.id ?? p._id ?? "",
-    semanticRepresentations: p.semanticRepresentations ?? [],
-    clinicalEntities: p.clinicalEntities ?? [],
-    diagnoses: p.diagnoses ?? [],
-    performanceStatus: p.performanceStatus ?? { ecog: p.ecog ?? 0 },
-    comorbidities: p.comorbidities ?? [],
-    labResults: p.labResults ?? [],
-    imagingFindings: p.imagingFindings ?? [],
-    treatments: p.treatments ?? [],
-    eligibilityBreakdown: p.eligibilityBreakdown ?? {
-      inclusionSummary: { met: 0, failed: 0, unknown: 0 },
-      exclusionSummary: { violated: 0, safe: 0, unknown: 0 },
-      inclusionCriteria: [],
-      exclusionCriteria: [],
-      blockingReasons: [],
-      missingInformation: [],
-    },
+    id: p.id ?? p._id ?? p.patientId ?? "",
+
+    // ── Flattened from demographics ──
+    age: p.demographics?.age ?? p.age ?? 0,
+    sex: p.demographics?.sex ?? p.sex ?? "Unknown",
+
+    // ── Flattened from diagnoses array ──
+    primaryDiagnosis: p.diagnoses?.[0]?.name ?? p.primaryDiagnosis ?? "Unknown",
+
+    // ── Flattened from performanceStatus ──
+    ecog: p.performanceStatus?.ECOG ?? p.performanceStatus?.ecog ?? p.ecog ?? 0,
+
+    // ── From trialMatches[0] ──
+    eligibilityStatus: latestMatch?.overallEligibility ?? p.eligibilityStatus ?? "Uncertain",
+    rankingScore: latestMatch?.eligibilityScore ?? p.rankingScore ?? 0,
+
+    // ── riskFlag: true if any blocking reasons exist ──
+    riskFlag: (latestMatch?.blockingReasons?.length ?? 0) > 0,
+
+    // ── scoreBreakdown: map from trialMatches or default ──
     scoreBreakdown: p.scoreBreakdown ?? {
-      eligibilityScore: 0,
+      eligibilityScore: latestMatch?.eligibilityScore ?? 0,
       clinicalQualityScore: 0,
       biomarkerFitScore: 0,
       riskPenalty: 0,
       operationalScore: 0,
     },
-    lastEvaluated: p.lastEvaluated ?? new Date().toISOString(),
+
+    // ── Normalized nested arrays ──
+    semanticRepresentations: p.semanticRepresentations ?? [],
+    clinicalEntities: p.clinicalEntities ?? [],
+    diagnoses: p.diagnoses ?? [],
+    performanceStatus: p.performanceStatus ?? { ecog: 0 },
+    comorbidities: p.comorbidities ?? [],
+    labResults: p.labResults ?? [],
+    imagingFindings: p.imagingFindings ?? [],
+    treatments: p.treatments ?? [],
+    trialMatches: Array.isArray(p.trialMatches)
+      ? p.trialMatches.map((m: any) => ({
+          ...m,
+          overallEligibility: m.overallEligibility ?? "Uncertain",
+          eligibilityScore: m.eligibilityScore ?? 0,
+          blockingReasons: m.blockingReasons ?? [],
+          missingInformation: m.missingInformation ?? [],
+          inclusionSummary: m.inclusionSummary ?? { met: 0, failed: 0, unknown: 0 },
+          exclusionSummary: m.exclusionSummary ?? { violated: 0, safe: 0, unknown: 0 },
+        }))
+      : [],
+
+    eligibilityBreakdown: p.eligibilityBreakdown ?? {
+      inclusionSummary: latestMatch?.inclusionSummary ?? { met: 0, failed: 0, unknown: 0 },
+      exclusionSummary: latestMatch?.exclusionSummary ?? { violated: 0, safe: 0, unknown: 0 },
+      inclusionCriteria: [],
+      exclusionCriteria: [],
+      blockingReasons: latestMatch?.blockingReasons ?? [],
+      missingInformation: latestMatch?.missingInformation ?? [],
+    },
+
+    lastEvaluated: latestMatch?.evaluatedAt ?? p.lastEvaluated ?? p.createdAt ?? new Date().toISOString(),
   };
 }

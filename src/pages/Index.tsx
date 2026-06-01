@@ -43,7 +43,7 @@ const Index = () => {
       {/* Welcome */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Welcome back, Dr. Patel 👋</h1>
+          <h1 className="text-2xl font-bold text-foreground">Welcome back, Dr.  👋</h1>
           <p className="text-muted-foreground">Manage and monitor your clinical trials efficiently.</p>
         </div>
         <Button size="lg" onClick={() => navigate("/create-trial")} className="shrink-0">

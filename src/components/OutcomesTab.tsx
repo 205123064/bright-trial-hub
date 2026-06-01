@@ -17,7 +17,10 @@ interface Props {
 
 export function OutcomesTab({ outcomes, onSave }: Props) {
   const { toast } = useToast();
-  const initial = outcomes || DEFAULT_OUTCOMES;
+  const initial =
+  outcomes && typeof outcomes === "object" && "primary" in outcomes
+    ? outcomes
+    : DEFAULT_OUTCOMES;
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [primary, setPrimary] = useState<Outcome[]>(initial.primary.map((o) => ({ ...o })));

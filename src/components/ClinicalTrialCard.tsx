@@ -10,9 +10,15 @@ interface Props {
   trial: ClinicalTrial;
 }
 
+
 export function ClinicalTrialCard({ trial }: Props) {
   const navigate = useNavigate();
-
+  const formattedDate = trial.startDate
+  ? new Date(trial.startDate).toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    })
+  : "—";
   return (
     <Card className="group flex flex-col transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer border-border/60">
       <CardHeader className="pb-3">
@@ -28,7 +34,7 @@ export function ClinicalTrialCard({ trial }: Props) {
         <p><span className="font-medium text-primary underline">Condition:</span>{" "}<span className="text-card-foreground">{trial.condition}</span></p>
         <p className="flex items-center gap-1.5 text-muted-foreground"><MapPin className="h-3.5 w-3.5" />{trial.location}</p>
         <p className="flex items-center gap-1.5 text-muted-foreground"><Users className="h-3.5 w-3.5" />{trial.enrollment} participants</p>
-        <p className="flex items-center gap-1.5 text-muted-foreground"><Calendar className="h-3.5 w-3.5" />{new Date(trial.startDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</p>
+        <p className="flex items-center gap-1.5 text-muted-foreground"><Calendar className="h-3.5 w-3.5" />{formattedDate}</p>
       </CardContent>
       <CardFooter className="pt-0">
         <Button

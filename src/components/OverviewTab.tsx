@@ -42,6 +42,13 @@ export function OverviewTab({ trial, onSave }: Props) {
     });
     setEditing(false);
   };
+  const formattedStartDate = trial.startDate
+  ? new Date(trial.startDate).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
+  : "—";
 
   const handleSave = () => {
     if (!form.title.trim()) return;
@@ -89,7 +96,7 @@ export function OverviewTab({ trial, onSave }: Props) {
               <Row label="Condition" value={trial.condition} />
               <Row label="Location" value={trial.location} />
               <Row label="Enrollment Target" value={trial.enrollment} />
-              <Row label="Start Date" value={new Date(trial.startDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} />
+              <Row label="Start Date" value={formattedStartDate} />
               <Row label="Ages Eligible" value={trial.agesEligible} />
               <Row label="Sexes Eligible" value={trial.sexesEligible} />
               <Row label="Accepts Healthy Volunteers" value={trial.acceptsHealthyVolunteers ? "Yes" : "No"} />

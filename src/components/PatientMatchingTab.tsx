@@ -58,61 +58,21 @@ function statusBadge(status: EligibilityStatus) {
     "Not Eligible": { icon: <XCircle className="h-3 w-3" />, cls: "bg-[hsl(var(--destructive))]/10 text-[hsl(var(--destructive))] border-[hsl(var(--destructive))]/30" },
     Uncertain: { icon: <HelpCircle className="h-3 w-3" />, cls: "bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/30" },
   };
-  const m = map[status];
+  // Guard: if status doesn't match any key, fall back gracefully
+  const m = map[status] ?? {
+    icon: <HelpCircle className="h-3 w-3" />,
+    cls: "bg-gray-100 text-gray-500 border-gray-300"
+  };
+  const label = status ?? "Unknown";
   return (
     <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", m.cls)}>
-      {m.icon} {status}
+      {m.icon} {label}
     </span>
   );
 }
 
 /* ── Score Breakdown Dialog ── */
-function ScoreBreakdownDialog({ patient }: { patient: Patient }) {
-  const sb = patient.scoreBreakdown;
-  const items = [
-    { label: "Eligibility Score", value: sb.eligibilityScore, desc: "How well inclusion/exclusion criteria are met" },
-    { label: "Clinical Quality Score", value: sb.clinicalQualityScore, desc: "Quality and completeness of clinical data" },
-    { label: "Biomarker Fit Score", value: sb.biomarkerFitScore, desc: "Biomarker alignment with trial requirements" },
-    { label: "Risk Penalty", value: sb.riskPenalty, desc: "Deductions for comorbidities, organ function, etc.", isNegative: true },
-    { label: "Operational Score", value: sb.operationalScore, desc: "Site proximity, compliance likelihood" },
-  ];
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-primary" onClick={(e) => e.stopPropagation()}>
-          <Eye className="h-3 w-3" /> View Breakdown
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            Score Breakdown – {patient.id}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 pt-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Final Match Score</span>
-            <span className={cn("text-2xl font-bold", getScoreColor(patient.rankingScore))}>{patient.rankingScore}</span>
-          </div>
-          <Separator />
-          {items.map((item) => (
-            <div key={item.label} className="space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{item.label}</span>
-                <span className={cn("text-sm font-semibold", item.isNegative ? "text-[hsl(var(--destructive))]" : getScoreColor(item.value))}>
-                  {item.isNegative ? `-${item.value}` : item.value}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">{item.desc}</p>
-              {!item.isNegative && <ScoreProgressBar score={item.value} />}
-            </div>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
+
 
 /* ── Upload XML Modal ── */
 function UploadXmlDialog({ trialId, onUploaded }: { trialId: string; onUploaded: () => void }) {
@@ -255,7 +215,7 @@ export function PatientMatchingTab({ trial }: Props) {
     let result = [...participants];
     const q = search.toLowerCase();
     if (q) result = result.filter((p) => p.id.toLowerCase().includes(q));
-    if (sexFilter && sexFilter !== "all") result = result.filter((p) => p.sex === sexFilter);
+    if (sexFilter && sexFilter !== "all") result = result.filter((p) => p.sex.toLowerCase() === sexFilter.toLowerCase());
     if (ageMin) result = result.filter((p) => p.age >= Number(ageMin));
     if (ageMax) result = result.filter((p) => p.age <= Number(ageMax));
     if (minScore > 0) result = result.filter((p) => p.rankingScore >= minScore);
@@ -326,9 +286,9 @@ export function PatientMatchingTab({ trial }: Props) {
             <Input placeholder="Search by Patient ID..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
           <Select value={sexFilter} onValueChange={setSexFilter}>
-            <SelectTrigger className="w-[130px]"><SelectValue placeholder="Sex" /></SelectTrigger>
+            <SelectTrigger className="w-[130px]"><SelectValue placeholder="Gender" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Sexes</SelectItem>
+              <SelectItem value="all">All Genders</SelectItem>
               <SelectItem value="Male">Male</SelectItem>
               <SelectItem value="Female">Female</SelectItem>
             </SelectContent>
@@ -351,12 +311,12 @@ export function PatientMatchingTab({ trial }: Props) {
             <Slider value={[minScore]} onValueChange={([v]) => setMinScore(v)} max={100} step={1} className="w-48" />
           </div>
           <div className="flex items-center gap-2">
-            <Switch id="incl-fail" checked={showInclusionFailures} onCheckedChange={setShowInclusionFailures} />
-            <Label htmlFor="incl-fail" className="text-sm text-muted-foreground cursor-pointer">Inclusion Failures</Label>
+            {/* <Switch id="incl-fail" checked={showInclusionFailures} onCheckedChange={setShowInclusionFailures} /> */}
+            {/* <Label htmlFor="incl-fail" className="text-sm text-muted-foreground cursor-pointer">Inclusion Failures</Label> */}
           </div>
           <div className="flex items-center gap-2">
-            <Switch id="missing" checked={showMissingData} onCheckedChange={setShowMissingData} />
-            <Label htmlFor="missing" className="text-sm text-muted-foreground cursor-pointer">Missing Data</Label>
+            {/* <Switch id="missing" checked={showMissingData} onCheckedChange={setShowMissingData} /> */}
+            {/* <Label htmlFor="missing" className="text-sm text-muted-foreground cursor-pointer">Missing Data</Label> */}
           </div>
         </div>
       </div>
@@ -372,11 +332,11 @@ export function PatientMatchingTab({ trial }: Props) {
                 <TableHead>Age</TableHead>
                 <TableHead>Sex</TableHead>
                 <TableHead>Primary Diagnosis</TableHead>
-                <TableHead>ECOG</TableHead>
+                
                 <TableHead className="min-w-[180px]">Match Score</TableHead>
                 <TableHead>Eligibility</TableHead>
-                <TableHead>Risk</TableHead>
-                <TableHead className="text-right">Action</TableHead>
+                {/* <TableHead>Risk</TableHead> */}
+                <TableHead className="text-center">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -404,9 +364,7 @@ export function PatientMatchingTab({ trial }: Props) {
                     <TableCell>{p.age}</TableCell>
                     <TableCell>{p.sex}</TableCell>
                     <TableCell className="text-sm">{p.primaryDiagnosis}</TableCell>
-                    <TableCell>
-                      <span className={cn("font-semibold", p.ecog >= 3 ? "text-[hsl(var(--destructive))]" : "text-foreground")}>{p.ecog}</span>
-                    </TableCell>
+  
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
@@ -416,17 +374,17 @@ export function PatientMatchingTab({ trial }: Props) {
                           </span>
                         </div>
                         <ScoreProgressBar score={p.rankingScore} />
-                        <ScoreBreakdownDialog patient={p} />
+                    
                       </div>
                     </TableCell>
                     <TableCell>{statusBadge(p.eligibilityStatus)}</TableCell>
-                    <TableCell>
+                    {/* <TableCell>
                       {p.riskFlag ? (
                         <AlertTriangle className="h-4 w-4 text-[hsl(var(--destructive))]" />
                       ) : (
                         <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success))]" />
                       )}
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell className="text-right">
                       <Button
                         variant="outline"
